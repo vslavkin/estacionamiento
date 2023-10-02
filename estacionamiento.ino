@@ -8,37 +8,7 @@
 #define ledVerde 2
 #define ledRojo 3
 #define maxSpace 8
-
-Servo servoEntrada;
-Servo servoSalida;
-
-LiquidCrystal lcd(8,9,4,5,6,7);
-
-unsigned int contador;
-
-void setup(){
-  lcd.begin(16,2);
-  servoEntrada.attach(pinServoEntrada);
-  servoSalida.attach(pinServoSalida);
-  pinMode(btEntrada, INPUT_PULLUP);
-  pinMode(btSalida, INPUT_PULLUP);
-  pinMode(ledVerde, OUTPUT);
-  pinMode(ledRojo , OUTPUT);
-  Serial.begin(115200);
-}
-void loop(){
-  Serial.println(contador);
-  switch(leerBotones()){
-  case 1:
-    entrada();
-    break;
-  case 2:
-    salida();
-    break;
-  }
-  setSemaforo(contador<maxSpace);
-  imprimircartel(maxSpace-contador,contador);
-}
+#define servoDelayTime 2000
 
 void setSemaforo(bool estado){
   digitalWrite(ledVerde, estado);
@@ -52,21 +22,22 @@ int leerBotones(){
   else if (digitalRead(btSalida) == LOW){
     return 2;
   }
+  return 0;
 }
 
-void entrada(){
-  if(contador<maxSpace){
+void entrada(int *contador, Servo servoEntrada){
+  if(*contador<maxSpace){
     Serial.println("entrada");
-    subirBarrera(servoEntrada);
-    contador++;
+    *contador+=1;
+    /* subirBarrera(servoEntrada); */
   }
 }
 
-void salida(){
-  if(contador>0){
+void salida(int *contador, Servo servoSalida){
+  if(*contador>0){
     Serial.println("salida");
-    subirBarrera(servoSalida);
-    contador--;
+    /* subirBarrera(servoSalida); */
+    *contador-=1;
   }
 }
 
@@ -76,7 +47,7 @@ void subirBarrera(Servo servo){
   servo.write(0);
 }
 
-void imprimircartel(int libre,int ocupado){
+void imprimirCartel(int libre,int ocupado, LiquidCrystal lcd){
     lcd.setCursor(0,0); //columna y fila de la primera letra de la palabra
     lcd.print("Libre:");
     lcd.print(libre);
@@ -84,3 +55,53 @@ void imprimircartel(int libre,int ocupado){
     lcd.print("Ocupado:");
     lcd.print (ocupado);
 }
+
+Servo servoEntrada;
+Servo servoSalida;
+
+LiquidCrystal lcd(8,9,4,5,6,7);
+
+unsigned int contador;
+unsigned long long tiempoServo[]={0,0};
+
+void setup(){
+  lcd.begin(16,2);
+  servoEntrada.attach(pinServoEntrada);
+  servoSalida.attach(pinServoSalida);
+  pinMode(btEntrada, INPUT_PULLUP);
+  pinMode(btSalida, INPUT_PULLUP);
+  pinMode(ledVerde, OUTPUT);
+  pinMode(ledRojo , OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop(){
+  switch(leerBotones()){
+  case 1:
+    if(millis() > tiempoServo[0]+servoDelayTime){
+      tiempoServo[0]=millis();
+      entrada(&contador, servoEntrada);
+    }
+    break;
+  case 2:
+    if(millis() > tiempoServo[1]+servoDelayTime){
+      tiempoServo[1]=millis();
+      salida(&contador, servoSalida);
+    }
+    break;
+  }
+  setearServos(tiempoServo[0], servoEntrada);
+  setearServos(tiempoServo[1], servoSalida);
+  setSemaforo(contador<maxSpace);
+  imprimirCartel(maxSpace-contador,contador, lcd);
+}
+
+void setearServos(unsigned long long tiempoServo, Servo servo){
+  if(tiempoServo!=0 && millis() < tiempoServo+servoDelayTime){
+    servo.write(90);
+  }
+  else{
+    servo.write(0);
+  }
+}
+
