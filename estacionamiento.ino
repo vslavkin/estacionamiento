@@ -27,14 +27,12 @@ int leerBotones(){
 
 void entrada(int *contador){
   if(*contador<maxSpace){
-    Serial.println("entrada");
     *contador+=1;
   }
 }
 
 void salida(int *contador){
   if(*contador>0){
-    Serial.println("salida");
     *contador-=1;
   }
 }
@@ -48,15 +46,6 @@ void imprimirCartel(int libre,int ocupado, LiquidCrystal lcd){
     lcd.print (ocupado);
 }
 
-void setearServos(unsigned long long tiempoServo, Servo servo){
-  if(tiempoServo!=0 && millis() < tiempoServo+servoDelayTime){
-    servo.write(90);
-  }
-  else{
-    servo.write(0);
-  }
-}
-
 //Instancias de los objetos de servo
 Servo servoEntrada;
 Servo servoSalida;
@@ -64,8 +53,8 @@ Servo servoSalida;
 LiquidCrystal lcd(8,9,4,5,6,7);
 //Contador lleva la cuenta de cuantos autos hay en el estacionamiento
 unsigned int contador;
-//tiempoServo guarda cuando se toco el boton, para poder usar millis() y no bloquear el programa
-unsigned long long tiempoServo[]={0,0};
+//marcaTiempoServo guarda cuando se toco el boton, para poder usar millis() y no bloquear el programa
+unsigned long long marcaTiempoServo[]={0,0};
 
 void setup(){
   //Inicio el lcd con 16 columnas y 2 filas
@@ -84,25 +73,42 @@ void setup(){
 }
 
 void loop(){
-  switch(leerBotones()){
-  case 1:
-    if(millis() > tiempoServo[0]+servoDelayTime){
-      tiempoServo[0]=millis();
-      entrada(&contador);
-    }
-    break;
-  case 2:
-    if(millis() > tiempoServo[1]+servoDelayTime){
-      tiempoServo[1]=millis();
-      salida(&contador);
-    }
-    break;
-  }
+  administrarComandos(marcaTiempoServo, &contador);
   //Escribo ambos servos en base a tiemposervo
-  setearServos(tiempoServo[0], servoEntrada);
-  setearServos(tiempoServo[1], servoSalida);
+  actualizarServos(marcaTiempoServo[0], servoEntrada);
+  actualizarServos(marcaTiempoServo[1], servoSalida);
   //seteo los leds
   setSemaforo(contador<maxSpace);
   //Imprimo el numero de lugares libres y ocupados en el lcd
   imprimirCartel(maxSpace-contador,contador, lcd);
+}
+
+bool servoAbierto(unsigned long long marcaTiempoServo){
+  if(marcaTiempoServo==0)
+    return false;
+  return millis() > marcaTiempoServo+servoDelayTime;
+}
+void actualizarServos(unsigned long long marcaTiempoServo, Servo servo){
+  if(servoAbierto(marcaTiempoServo)){
+    servo.write(90);
+  }
+  else{
+    servo.write(0);
+  }
+}
+void administrarComandos(unsigned long long marcaTiempoServo[], unsigned int contador){
+  switch(leerBotones()){
+  case 1:
+    if(servoAbierto(marcaTiempoServo[0])){
+      marcaTiempoServo[0]=millis();
+      entrada(&contador);
+    }
+    break;
+  case 2:
+    if(servoAbierto(marcaTiempoServo[1])){
+      marcaTiempoServo[1]=millis();
+      salida(&contador);
+    }
+    break;
+  }
 }
