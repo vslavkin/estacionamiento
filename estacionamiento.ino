@@ -10,11 +10,6 @@
 #define maxSpace 8
 #define servoDelayTime 2000
 
-void setSemaforo(bool estado){
-  digitalWrite(ledVerde, estado);
-  digitalWrite(ledRojo, !estado);
-}
-
 int leerBotones(){
   if(digitalRead(btEntrada) == LOW){
     return 1;
@@ -25,16 +20,67 @@ int leerBotones(){
   return 0;
 }
 
-void entrada(int *contador){
-  if(*contador<maxSpace){
-    *contador+=1;
+bool servoAbierto(unsigned long long marcaTiempoServo){
+  if(marcaTiempoServo==0){
+    return false;
+  }
+  return millis() < marcaTiempoServo+servoDelayTime;
+}
+
+void actualizarServos(unsigned long long marcaTiempoServo, Servo servo){
+  if(servoAbierto(marcaTiempoServo)){
+    servo.write(90);
+  }
+  else{
+    servo.write(0);
+  }
+}
+void administrarComandos(unsigned long long* marcaTiempoServo, unsigned int* contador){
+  switch(leerBotones()){
+  case 1:
+    Serial.print("tiempo");
+    Serial.println((long)marcaTiempoServo[0]);
+    Serial.print("abierto");
+    Serial.println(millis()<marcaTiempoServo+servoDelayTime);
+    if(!servoAbierto(marcaTiempoServo[0])){
+      if(!sumaSaturada(*contador, 1, 0, maxSpace, contador)){
+	marcaTiempoServo[0]=millis();
+      }
+    }
+    break;
+  case 2:
+    if(!servoAbierto(marcaTiempoServo[1])){
+      if(!sumaSaturada(*contador, -1, 0, maxSpace, contador)){
+	marcaTiempoServo[1]=millis();
+      }
+    }
+    break;
+  default:
+    break;
   }
 }
 
-void salida(int *contador){
-  if(*contador>0){
-    *contador-=1;
+bool sumaSaturada(int a, int b, int min, int max, int* result){
+  int sum=a+b;
+  if(sum < min){
+    *result=min;
+    return true;
   }
+  else if(sum > max){
+    *result=max;
+    return true;
+  }
+  else{
+    *result=sum;
+    return false;
+  }
+}
+
+
+
+void setSemaforo(bool estado){
+  digitalWrite(ledVerde, estado);
+  digitalWrite(ledRojo, !estado);
 }
 
 void imprimirCartel(int libre,int ocupado, LiquidCrystal lcd){
@@ -81,34 +127,4 @@ void loop(){
   setSemaforo(contador<maxSpace);
   //Imprimo el numero de lugares libres y ocupados en el lcd
   imprimirCartel(maxSpace-contador,contador, lcd);
-}
-
-bool servoAbierto(unsigned long long marcaTiempoServo){
-  if(marcaTiempoServo==0)
-    return false;
-  return millis() > marcaTiempoServo+servoDelayTime;
-}
-void actualizarServos(unsigned long long marcaTiempoServo, Servo servo){
-  if(servoAbierto(marcaTiempoServo)){
-    servo.write(90);
-  }
-  else{
-    servo.write(0);
-  }
-}
-void administrarComandos(unsigned long long marcaTiempoServo[], unsigned int contador){
-  switch(leerBotones()){
-  case 1:
-    if(servoAbierto(marcaTiempoServo[0])){
-      marcaTiempoServo[0]=millis();
-      entrada(&contador);
-    }
-    break;
-  case 2:
-    if(servoAbierto(marcaTiempoServo[1])){
-      marcaTiempoServo[1]=millis();
-      salida(&contador);
-    }
-    break;
-  }
 }
