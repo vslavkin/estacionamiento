@@ -21,10 +21,7 @@ int leerBotones(){
 }
 
 bool servoAbierto(unsigned long long marcaTiempoServo){
-  if(marcaTiempoServo==0){
-    return false;
-  }
-  return millis() < marcaTiempoServo+servoDelayTime;
+  return millis() < marcaTiempoServo;
 }
 
 void actualizarServos(unsigned long long marcaTiempoServo, Servo servo){
@@ -35,23 +32,20 @@ void actualizarServos(unsigned long long marcaTiempoServo, Servo servo){
     servo.write(0);
   }
 }
+
 void administrarComandos(unsigned long long* marcaTiempoServo, unsigned int* contador){
   switch(leerBotones()){
   case 1:
-    Serial.print("tiempo");
-    Serial.println((long)marcaTiempoServo[0]);
-    Serial.print("abierto");
-    Serial.println(millis()<marcaTiempoServo+servoDelayTime);
     if(!servoAbierto(marcaTiempoServo[0])){
       if(!sumaSaturada(*contador, 1, 0, maxSpace, contador)){
-	marcaTiempoServo[0]=millis();
+	marcaTiempoServo[0]=millis()+servoDelayTime;
       }
     }
     break;
   case 2:
     if(!servoAbierto(marcaTiempoServo[1])){
       if(!sumaSaturada(*contador, -1, 0, maxSpace, contador)){
-	marcaTiempoServo[1]=millis();
+	marcaTiempoServo[1]=millis()+servoDelayTime;
       }
     }
     break;
@@ -75,8 +69,6 @@ bool sumaSaturada(int a, int b, int min, int max, int* result){
     return false;
   }
 }
-
-
 
 void setSemaforo(bool estado){
   digitalWrite(ledVerde, estado);
@@ -114,8 +106,6 @@ void setup(){
   //Pongo como salidas los GPIOs de los leds
   pinMode(ledVerde, OUTPUT);
   pinMode(ledRojo , OUTPUT);
-  
-  Serial.begin(115200);
 }
 
 void loop(){
